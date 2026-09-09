@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Devops App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, system-ui, -apple-system, Arial, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea, #764ba2, #6b8cff);
+      background-size: 400% 400%;
+      animation: gradientMove 12s ease infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(14px);
+      border-radius: 20px;
+      padding: 48px 56px;
+      max-width: 640px;
+      width: 92%;
+      text-align: center;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2.6rem;
+      letter-spacing: 0.6px;
+    }
+
+    h1 span {
+      background: linear-gradient(90deg, #ffe259, #ffa751);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p {
+      margin: 14px 0;
+      font-size: 1.1rem;
+      line-height: 1.7;
+      opacity: 0.95;
+    }
+
+    .badge {
+      display: inline-block;
+      margin: 18px 0 10px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.35);
+      font-size: 0.95rem;
+      letter-spacing: 0.4px;
+    }
+
+    .btn {
+      display: inline-block;
+      margin-top: 22px;
+      padding: 14px 28px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ff512f, #dd2476);
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 1.05rem;
+      font-weight: 600;
+      box-shadow: 0 12px 25px rgba(221, 36, 118, 0.5);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 18px 35px rgba(221, 36, 118, 0.7);
+    }
+
+    footer {
+      margin-top: 26px;
+      font-size: 0.9rem;
+      opacity: 0.75;
+    }
+
+    code {
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>🚀 <span>DevOps App</span></h1>
+
+    <p>
+      Welcome! Your Java web application has been successfully built using
+      <strong>Maven</strong> and deployed on <strong>Apache Tomcat 10</strong>.
+    </p>
+
+    <div class="badge">
+      Context Path: <strong>/tomcat-demo</strong>
+    </div>
+
+    <div>
+      <a class="btn" href="hello">Open Hello Servlet</a>
+    </div>
+
+    <footer>
+      Built with <code>mvn clean install</code> •
+      <script>
+        document.write(new Date().toLocaleString());
+      </script>
+    </footer>
+  </div>
+</body>
+</html>
+
