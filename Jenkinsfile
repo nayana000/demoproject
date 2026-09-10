@@ -2,95 +2,84 @@ pipeline {
 
     agent any
 
-    options {
-        skipDefaultCheckout(true)
-    }
-
-    parameters {
-        gitParameter(
-            name: 'BRANCH_NAME',
-            type: 'PT_BRANCH',
-            branchFilter: 'origin/(.*)',
-            defaultValue: 'main',
-            selectedValue: 'DEFAULT',
-            sortMode: 'DESCENDING_SMART',
-            description: 'Select the GitHub branch to build'
-        )
+    tools {
+        jdk 'java21'
+        maven 'maven3'
     }
 
     environment {
-        GIT_URL = 'https://github.com/nayana000/demoproject.git'
-        SONARQUBE_SERVER = 'SonarQube-Server'
+
+        SONARQUBE_SERVER = 'SonarQube'
+        NEXUS_URL = 'http://13.201.240.69:8081'
+        NEXUS_REPOSITORY = 'maven-releases'
+        GIT_CREDENTIALS = 'gitcredentials'
+        NEXUS_CREDENTIALS = 'nexuscredentials'
+        GIT_REPO = 'https://github.com/nayana000/demoproject.git'
+
     }
 
+    parameters {
+
+        gitParameter(
+            name: 'BRANCH',
+            type: 'PT_BRANCH',
+            defaultValue: 'main',
+            branchFilter: 'origin/(.*)',
+            selectedValue: 'DEFAULT',
+            sortMode: 'ASCENDING',
+            description: 'Select the Git branch to build',
+            useRepository: 'https://github.com/nayana000/demoproject.git'
+        )
+    }
+
+
     stages {
-
-        stage('Fetch Branch') {
-
-            steps {
-
-                echo "Fetching latest branch information from GitHub..."
-
-                deleteDir()
-
-                git branch: 'main',
-                    url: "${GIT_URL}"
-
-                sh '''
-                    echo "Fetching all branches..."
-                    git fetch --all --prune
-
-                    echo ""
-                    echo "Available branches:"
-                    git branch -r
-                '''
-
-                echo "Selected Branch: ${params.BRANCH_NAME}"
-            }
-        }
-
-
         stage('Checkout') {
-
             steps {
+                echo "CHECKING OUT BRANCH: ${params.BRANCH}"
 
-                echo "Checking out branch: ${params.BRANCH_NAME}"
+                checkout([
+                    $class: 'GitSCM',
+
+                    branches: [[
+                        name: "*/${params.BRANCH}"
+                    ]],
+
+                    userRemoteConfigs: [[
+                        url: "${GIT_REPO}",
+                        credentialsId: "${GIT_CREDENTIALS}"
+                    ]],
+
+                    extensions: [
+                        [
+                            $class: 'CleanBeforeCheckout'
+                        ]
+                    ]
+                ])
 
                 sh '''
-                    git checkout -B ${BRANCH_NAME} origin/${BRANCH_NAME}
-                '''
-
-                sh '''
-                    echo "========================================"
-                    echo "Checked out branch:"
+                    echo "CHECKED OUT BRANCH"
                     git branch --show-current
 
-                    echo ""
                     echo "Commit:"
                     git rev-parse HEAD
 
-                    echo "========================================"
+                    echo "Commit Message:"
+                    git log -1 --pretty=%B
                 '''
             }
         }
 
 
         stage('SonarQube Analysis') {
-
             steps {
-
-                echo "Starting SonarQube Analysis..."
-
+                echo 'RUNNING SONARQUBE ANALYSIS'
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
 
                     sh '''
-                        mvn clean verify sonar:sonar \
-                        -Dsonar.projectKey=project \
-                        -Dsonar.projectName=project
+                        mvn clean verify sonar:sonar
                     '''
                 }
-
-                echo "SonarQube analysis completed."
             }
         }
 
@@ -98,40 +87,110 @@ pipeline {
         stage('Quality Gate') {
 
             steps {
+                echo 'WAITING FOR SONARQUBE QUALITY GATE'
+                timeout(
+                    time: 10,
+                    unit: 'MINUTES'
+                ) {
 
-                echo "Waiting for SonarQube Quality Gate..."
-
-                timeout(time: 10, unit: 'MINUTES') {
-
-                    waitForQualityGate abortPipeline: true
+                    waitForQualityGate(
+                        abortPipeline: true
+                    )
                 }
 
-                echo "========================================"
-                echo "CODE QUALITY GATE PASSED"
-                echo "========================================"
+                echo 'SONARQUBE QUALITY GATE PASSED'
+            }
+        }
+
+
+        stage('Build') {
+
+            steps {
+
+                echo 'BUILDING APPLICATION'
+
+                sh '''
+                    mvn package -DskipTests
+                '''
+
+                echo 'BUILD COMPLETED'
+                sh '''
+                    echo "Generated artifacts:"
+                    find target -type f
+                '''
+            }
+        }
+
+        stage('Push to Nexus') {
+
+            steps {
+
+                echo 'PUSH ARTIFACTS TO NEXUS'
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${NEXUS_CREDENTIALS}",
+                        usernameVariable: 'NEXUS_USERNAME',
+                        passwordVariable: 'NEXUS_PASSWORD'
+                    )
+                ]) {
+
+                    sh '''
+                        set +x
+
+                        echo "Creating temporary Maven settings..."
+
+                        cat > settings.xml <<EOF
+<settings>
+    <servers>
+        <server>
+            <id>nexus</id>
+            <username>${NEXUS_USERNAME}</username>
+            <password>${NEXUS_PASSWORD}</password>
+        </server>
+    </servers>
+</settings>
+EOF
+
+                        echo "Uploading artifact to Nexus..."
+
+                        mvn deploy \
+                            -DskipTests \
+                            -s settings.xml
+
+                        echo "NEXUS UPLOAD SUCCESSFUL"
+
+                        rm -f settings.xml
+                    '''
+                }
             }
         }
     }
-
 
     post {
 
         success {
 
-            echo "========================================"
-            echo "PIPELINE SUCCESS"
-            echo "Branch: ${params.BRANCH_NAME}"
-            echo "Code Quality Gate: PASSED"
-            echo "========================================"
+            echo "PIPELINE EXECUTION SUCCESSFUL"
         }
 
         failure {
 
-            echo "========================================"
             echo "PIPELINE FAILED"
-            echo "Branch: ${params.BRANCH_NAME}"
-            echo "Code Quality Gate: FAILED"
-            echo "========================================"
+        }
+
+        always {
+
+            sh '''
+                rm -f settings.xml || true
+            '''
+
+            archiveArtifacts(
+                artifacts: 'target/*.jar',
+                allowEmptyArchive: true
+            )
+
+            cleanWs()
         }
     }
 }
+
