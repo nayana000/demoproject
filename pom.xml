@@ -1,56 +1,53 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-    <modelVersion>4.0.0</modelVersion>
+<modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.example</groupId>
-    <artifactId>tomcat-demo</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
+<groupId>com.example</groupId>
+<artifactId>demo-project</artifactId>
+<version>1.0.0</version>
+<packaging>jar</packaging>
 
-    <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+<properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+</properties>
 
-    <dependencies>
+<dependencies>
 
-        <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
-            <version>5.0.0</version>
-            <scope>provided</scope>
-        </dependency>
+    <dependency>
+        <groupId>jakarta.servlet</groupId>
+        <artifactId>jakarta.servlet-api</artifactId>
+        <version>5.0.0</version>
+        <scope>provided</scope>
+    </dependency>
 
-    </dependencies>
+</dependencies>
 
-    <build>
+<build>
 
-        <finalName>demo-Project</finalName>
+    <finalName>demo-Project</finalName>
 
-        <plugins>
+    <plugins>
 
-            <!-- SonarQube Maven Plugin -->
-            <plugin>
-                <groupId>org.sonarsource.scanner.maven</groupId>
-                <artifactId>sonar-maven-plugin</artifactId>
-                <version>5.5.0.6356</version>
-            </plugin>
+        <!-- SonarQube Maven Scanner -->
+        <plugin>
+            <groupId>org.sonarsource.scanner.maven</groupId>
+            <artifactId>sonar-maven-plugin</artifactId>
+            <version>5.5.0.6356</version>
+        </plugin>
 
-        </plugins>
+    </plugins>
 
-    </build>
+</build>
 
-    <distributionManagement>
+<distributionManagement>
 
-        <repository>
-            <id>nexus</id>
-            <url>http://13.201.240.69:8081/repository/maven-releases/</url>
-        </repository>
+    <repository>
+        <id>nexus</id>
+        <url>http://13.201.240.69:8081/repository/maven-releases/</url>
+    </repository>
 
-    </distributionManagement>
+</distributionManagement>
 
 </project>
-

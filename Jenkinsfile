@@ -1,6 +1,9 @@
 pipeline {
 
     agent any
+    options {
+    	skipDefaultCheckout(true)
+    }
 
     tools {
         jdk 'java21'
