@@ -85,16 +85,25 @@ pipeline {
 
 
         stage('SonarQube Analysis') {
-            steps {
-                echo 'RUNNING SONARQUBE ANALYSIS'
-                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+    steps {
+        echo 'RUNNING SONARQUBE ANALYSIS'
 
-                    sh '''
-                        mvn clean verify sonar:sonar
-                    '''
-                }
+        withSonarQubeEnv("${SONARQUBE_SERVER}") {
+            withCredentials([
+                string(
+                    credentialsId: 'sonartocken',
+                    variable: 'SONAR_TOKEN'
+                )
+            ]) {
+                sh '''
+                    mvn clean verify sonar:sonar \
+                        -Dsonar.token="$SONAR_TOKEN"
+                '''
             }
         }
+    }
+}
+
 
 
         stage('Quality Gate') {
