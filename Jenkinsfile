@@ -18,6 +18,16 @@ pipeline {
         GIT_CREDENTIALS = 'gitcredentials'
         NEXUS_CREDENTIALS = 'nexuscredentials'
         GIT_REPO = 'https://github.com/nayana000/demoproject.git'
+	AWS_REGION = 'ap-south-1'
+	AWS_ACCOUNT_ID = '890615325308'
+	ECR_REPOSITORY = 'demoproject'
+	ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+	EC2_CREDENTIALS = 'sshkey'
+	EC2_HOST = '3.109.206.28'
+	EC2_USER = 'ubuntu'
+	CONTAINER_NAME = 'demoproject'
+	HOST_PORT = '8082'
+        APPLICATION_PORT = '8081'
 
     }
 
@@ -167,6 +177,154 @@ EOF
                 }
             }
         }
+	stage('Build Docker Image') {
+
+        	steps {
+
+        		echo 'BUILDING DOCKER IMAGE'
+
+        		script {
+
+            			env.IMAGE_TAG = sh(
+                		script: 'git rev-parse --short HEAD',
+                		returnStdout: true
+            			).trim()
+
+            			echo "Docker Image Tag: ${IMAGE_TAG}"
+        		}
+
+        		sh '''
+            		docker build \
+                	-t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
+                	-t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
+                .
+        		'''
+
+        		echo 'DOCKER IMAGE BUILD COMPLETED'
+    		}
+	}
+	
+	stage('Login to ECR') {
+
+    steps {
+
+        echo 'LOGGING INTO AWS ECR'
+
+        sh '''
+            aws ecr get-login-password \
+                --region ${AWS_REGION} \
+            | docker login \
+                --username AWS \
+                --password-stdin \
+                ${ECR_REGISTRY}
+        '''
+
+        echo 'ECR LOGIN SUCCESSFUL'
+    }
+}
+
+stage('Push Docker Image to ECR') {
+
+    steps {
+
+        echo 'PUSHING DOCKER IMAGE TO ECR'
+
+        sh '''
+            docker push \
+                ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+            docker push \
+                ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+        '''
+
+        echo 'DOCKER IMAGE PUSHED TO ECR'
+    }
+}
+
+stage('Deploy to EC2') {
+
+    steps {
+
+        echo 'DEPLOYING DOCKER IMAGE TO EC2'
+
+        sshagent(credentials: ["${EC2_CREDENTIALS}"]) {
+
+            sh '''
+                ssh -o StrictHostKeyChecking=no \
+                    ${EC2_USER}@${EC2_HOST} << EOF
+
+                    set -e
+                    echo "EC2 DEPLOYMENT STARTED"
+
+                    echo "Logging into ECR..."
+
+                    aws ecr get-login-password \
+                        --region ${AWS_REGION} \
+                    | docker login \
+                        --username AWS \
+                        --password-stdin \
+                        ${ECR_REGISTRY}
+
+
+                    echo "Pulling Docker image..."
+
+                    docker pull \
+                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+
+                    echo "Stopping old container..."
+
+                    docker stop \
+                        ${CONTAINER_NAME} || true
+
+
+                    echo "Removing old container..."
+
+                    docker rm \
+                        ${CONTAINER_NAME} || true
+
+
+                    echo "Starting new container..."
+
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        --restart unless-stopped \
+                        -p ${HOST_PORT}:${APPLICATION_PORT} \
+                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+
+                    echo "Waiting for application..."
+
+                    sleep 10
+
+
+                    echo "Checking container..."
+
+                    if [ "\$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME})" != "true" ]; then
+
+                        echo "Container failed to start."
+
+                        docker logs ${CONTAINER_NAME}
+
+                        exit 1
+
+                    fi
+
+
+                    
+                    echo "DEPLOYMENT SUCCESSFUL"
+                    
+
+                    docker ps
+
+EOF
+            '''
+        }
+    }
+}
+
+
+
     }
 
     post {
