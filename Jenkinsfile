@@ -125,7 +125,7 @@ pipeline {
         }
 
 
-        stage('Build') {
+     /*   stage('Build') {
 
             steps {
 
@@ -185,7 +185,7 @@ EOF
                     '''
                 }
             }
-        }
+        } */
 	stage('Build Docker Image') {
 
         	steps {
