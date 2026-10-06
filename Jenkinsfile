@@ -249,7 +249,8 @@ pipeline {
                                 exit 1
 
                             fi
-
+                            echo "CONTAINER IS RUNNING"
+                            curl -f http://localhost:${HOST_PORT}/hello
                             echo "DEPLOYMENT SUCCESSFUL"
 
                             docker ps
