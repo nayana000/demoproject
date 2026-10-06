@@ -177,9 +177,6 @@ pipeline {
                 sh '''
                     docker push \
                         ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-
-                    docker push \
-                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
                 '''
 
                 echo 'DOCKER IMAGE PUSHED TO ECR'
@@ -196,7 +193,7 @@ pipeline {
 
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
-                            ${EC2_USER}@${EC2_HOST} << EOF
+                            ${EC2_USER}@${EC2_HOST} 'bash -s' << EOF
 
                             set -e
 
@@ -237,13 +234,13 @@ pipeline {
                             echo "Waiting for application..."
 
                             sleep 10
-
+                            docker ps -a
                             echo "Checking container..."
 
                             if [ "\$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME})" != "true" ]; then
 
                                 echo "Container failed to start."
-
+                                docker ps -a
                                 docker logs ${CONTAINER_NAME}
 
                                 exit 1
