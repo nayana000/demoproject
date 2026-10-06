@@ -7,8 +7,6 @@
     <groupId>com.example</groupId>
     <artifactId>demo-project</artifactId>
     <version>1.0.0</version>
-
-    <!-- Standalone Java application -->
     <packaging>jar</packaging>
 
     <properties>
@@ -16,10 +14,6 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-
-    <dependencies>
-        <!-- No Servlet dependency needed -->
-    </dependencies>
 
     <build>
 
@@ -35,7 +29,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.example.demo.Main</mainClass>
+                            <mainClass>Main</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -51,14 +45,5 @@
         </plugins>
 
     </build>
-
-    <distributionManagement>
-
-        <repository>
-            <id>nexus</id>
-            <url>http://13.201.240.69:8081/repository/maven-releases/</url>
-        </repository>
-
-    </distributionManagement>
 
 </project>
