@@ -7,6 +7,8 @@
     <groupId>com.example</groupId>
     <artifactId>demo-project</artifactId>
     <version>1.0.0</version>
+
+    <!-- Standalone Java application -->
     <packaging>jar</packaging>
 
     <properties>
@@ -16,14 +18,7 @@
     </properties>
 
     <dependencies>
-
-        <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
-            <version>5.0.0</version>
-            <scope>provided</scope>
-        </dependency>
-
+        <!-- No Servlet dependency needed -->
     </dependencies>
 
     <build>
@@ -40,7 +35,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.example.Main</mainClass>
+                            <mainClass>com.example.demo.HelloApplication</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
