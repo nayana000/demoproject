@@ -18,15 +18,15 @@ pipeline {
         GIT_CREDENTIALS = 'gitcredentials'
         NEXUS_CREDENTIALS = 'nexuscredentials'
         GIT_REPO = 'https://github.com/nayana000/demoproject.git'
-	AWS_REGION = 'ap-south-1'
-	AWS_ACCOUNT_ID = '890615325308'
-	ECR_REPOSITORY = 'demoproject'
-	ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-	EC2_CREDENTIALS = 'sshkey'
-	EC2_HOST = '3.109.206.28'
-	EC2_USER = 'ubuntu'
-	CONTAINER_NAME = 'demoproject'
-	HOST_PORT = '8082'
+	    AWS_REGION = 'ap-south-1'
+	    AWS_ACCOUNT_ID = '890615325308'
+	    ECR_REPOSITORY = 'demoproject'
+	    ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+	    EC2_CREDENTIALS = 'sshkey'
+	    EC2_HOST = '3.109.206.28'
+	    EC2_USER = 'ubuntu'
+	    CONTAINER_NAME = 'demoproject'
+	    HOST_PORT = '8082'
         APPLICATION_PORT = '8081'
 
     }
@@ -111,7 +111,7 @@ pipeline {
             steps {
                 echo 'WAITING FOR SONARQUBE QUALITY GATE'
                 timeout(
-                    time: 10,
+                    time: 02,
                     unit: 'MINUTES'
                 ) {
 
@@ -348,16 +348,16 @@ EOF
             echo "PIPELINE FAILED"
         }
 
-        always {
+       always {
 
-            sh '''
+           /* sh '''
                 rm -f settings.xml || true
             '''
 
             archiveArtifacts(
                 artifacts: 'target/*.jar',
                 allowEmptyArchive: true
-            )
+            )*/
 
             cleanWs()
         }
