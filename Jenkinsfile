@@ -185,78 +185,116 @@ pipeline {
 
         stage('Deploy to EC2') {
 
-            steps {
+    steps {
 
-                echo 'DEPLOYING DOCKER IMAGE TO EC2'
+        echo 'DEPLOYING DOCKER IMAGE TO EC2'
 
-                sshagent(credentials: ["${EC2_CREDENTIALS}"]) {
+        sshagent(credentials: ["${EC2_CREDENTIALS}"]) {
 
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no \
-                            ${EC2_USER}@${EC2_HOST} 'bash -s' << EOF
+            sh """
+                ssh -o StrictHostKeyChecking=no \
+                    ${EC2_USER}@${EC2_HOST} 'bash -s' << EOF
 
-                            set -e
+                    set -e
 
-                            echo "EC2 DEPLOYMENT STARTED"
+                    echo "========================================="
+                    echo "EC2 DEPLOYMENT STARTED"
+                    echo "========================================="
 
-                            echo "Logging into ECR..."
+                    echo "Logging into ECR..."
 
-                            aws ecr get-login-password \
-                                --region ${AWS_REGION} \
-                            | docker login \
-                                --username AWS \
-                                --password-stdin \
-                                ${ECR_REGISTRY}
+                    aws ecr get-login-password \
+                        --region ${AWS_REGION} \
+                    | docker login \
+                        --username AWS \
+                        --password-stdin \
+                        ${ECR_REGISTRY}
 
-                            echo "Pulling Docker image..."
+                    echo "Pulling Docker image..."
 
-                            docker pull \
-                                ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+                    docker pull \
+                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
-                            echo "Stopping old container..."
+                    echo "Stopping old container..."
 
-                            docker stop \
-                                ${CONTAINER_NAME} || true
+                    docker stop ${CONTAINER_NAME} || true
 
-                            echo "Removing old container..."
+                    echo "Removing old container..."
 
-                            docker rm \
-                                ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
 
-                            echo "Starting new container..."
+                    echo "Starting new container..."
 
-                            docker run -d \
-                                --name ${CONTAINER_NAME} \
-                                --restart unless-stopped \
-                                -p ${HOST_PORT}:${APPLICATION_PORT} \
-                                ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        --restart unless-stopped \
+                        -p ${HOST_PORT}:${APPLICATION_PORT} \
+                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
-                            echo "Waiting for application..."
+                    echo "Waiting for application..."
 
-                            sleep 10
-                            docker ps -a
-                            echo "Checking container..."
+                    sleep 10
 
-                            if [ "\$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME})" != "true" ]; then
+                    echo "========================================="
+                    echo "CONTAINER STATUS"
+                    echo "========================================="
 
-                                echo "Container failed to start."
-                                docker ps -a
-                                docker logs ${CONTAINER_NAME}
+                    docker ps -a
 
-                                exit 1
+                    echo "Checking container..."
 
-                            fi
-                            echo "CONTAINER IS RUNNING"
-                            curl -f http://localhost:${HOST_PORT}/hello
-                            echo "DEPLOYMENT SUCCESSFUL"
+                    CONTAINER_STATUS=\$(docker inspect \
+                        -f '{{.State.Status}}' \
+                        ${CONTAINER_NAME})
 
-                            docker ps
+                    echo "Container status: [\$CONTAINER_STATUS]"
 
-EOF
-                    '''
-                }
-            }
+                    if [ "\$CONTAINER_STATUS" != "running" ]; then
+
+                        echo "Container failed to start."
+
+                        docker ps -a
+
+                        docker logs ${CONTAINER_NAME}
+
+                        exit 1
+
+                    fi
+
+                    echo "CONTAINER IS RUNNING"
+
+                    echo "========================================="
+                    echo "APPLICATION HEALTH CHECK"
+                    echo "========================================="
+
+                    HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \
+                        http://localhost:${HOST_PORT}/hello)
+
+                    echo "HTTP Status: [\$HTTP_STATUS]"
+
+                    if [ "\$HTTP_STATUS" != "200" ]; then
+
+                        echo "APPLICATION HEALTH CHECK FAILED"
+
+                        docker logs ${CONTAINER_NAME}
+
+                        exit 1
+
+                    fi
+
+                    echo "APPLICATION HEALTH CHECK PASSED"
+
+                    echo "========================================="
+                    echo "DEPLOYMENT SUCCESSFUL"
+                    echo "========================================="
+
+                    docker ps
+
+                    EOF
+            """
         }
+    }
+}
     }
 
     post {
