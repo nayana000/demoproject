@@ -1,8 +1,9 @@
 pipeline {
 
     agent any
+
     options {
-    	skipDefaultCheckout(true)
+        skipDefaultCheckout(true)
     }
 
     tools {
@@ -13,22 +14,26 @@ pipeline {
     environment {
 
         SONARQUBE_SERVER = 'SonarQube'
-        NEXUS_URL = 'http://13.201.240.69:8081'
-        NEXUS_REPOSITORY = 'maven-releases'
-        GIT_CREDENTIALS = 'gitcredentials'
-        NEXUS_CREDENTIALS = 'nexuscredentials'
-        GIT_REPO = 'https://github.com/nayana000/demoproject.git'
-	    AWS_REGION = 'ap-south-1'
-	    AWS_ACCOUNT_ID = '890615325308'
-	    ECR_REPOSITORY = 'demoproject'
-	    ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-	    EC2_CREDENTIALS = 'sshkey'
-	    EC2_HOST = '3.7.69.93'
-	    EC2_USER = 'ubuntu'
-	    CONTAINER_NAME = 'demoproject'
-	    HOST_PORT = '8082'
-        APPLICATION_PORT = '8081'
 
+        GIT_CREDENTIALS = 'gitcredentials'
+        GIT_REPO = 'https://github.com/nayana000/demoproject.git'
+
+        AWS_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = '890615325308'
+        ECR_REPOSITORY = 'demoproject'
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+        EC2_CREDENTIALS = 'sshkey'
+        EC2_HOST = '3.7.69.93'
+        EC2_USER = 'ubuntu'
+
+        CONTAINER_NAME = 'demoproject'
+
+        // EC2 host port
+        HOST_PORT = '8082'
+
+        // Java/Docker application port
+        APPLICATION_PORT = '8080'
     }
 
     parameters {
@@ -45,10 +50,12 @@ pipeline {
         )
     }
 
-
     stages {
+
         stage('Checkout') {
+
             steps {
+
                 echo "CHECKING OUT BRANCH: ${params.BRANCH}"
 
                 checkout([
@@ -72,7 +79,6 @@ pipeline {
 
                 sh '''
                     echo "CHECKED OUT BRANCH"
-                    git branch --show-current
 
                     echo "Commit:"
                     git rev-parse HEAD
@@ -83,35 +89,38 @@ pipeline {
             }
         }
 
-
         stage('SonarQube Analysis') {
-    steps {
-        echo 'RUNNING SONARQUBE ANALYSIS'
 
-        withSonarQubeEnv("${SONARQUBE_SERVER}") {
-            withCredentials([
-                string(
-                    credentialsId: 'sonartocken',
-                    variable: 'SONAR_TOKEN'
-                )
-            ]) {
-                sh '''
-                    mvn clean verify sonar:sonar \
-                        -Dsonar.token="$SONAR_TOKEN"
-                '''
+            steps {
+
+                echo 'RUNNING SONARQUBE ANALYSIS'
+
+                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+
+                    withCredentials([
+                        string(
+                            credentialsId: 'sonartocken',
+                            variable: 'SONAR_TOKEN'
+                        )
+                    ]) {
+
+                        sh '''
+                            mvn clean verify sonar:sonar \
+                                -Dsonar.token="$SONAR_TOKEN"
+                        '''
+                    }
+                }
             }
         }
-    }
-}
-
-
 
         stage('Quality Gate') {
 
             steps {
+
                 echo 'WAITING FOR SONARQUBE QUALITY GATE'
+
                 timeout(
-                    time: 02,
+                    time: 2,
                     unit: 'MINUTES'
                 ) {
 
@@ -124,216 +133,143 @@ pipeline {
             }
         }
 
-
-     /*   stage('Build') {
+        stage('Build Docker Image') {
 
             steps {
 
-                echo 'BUILDING APPLICATION'
+                echo 'BUILDING DOCKER IMAGE'
+
+                script {
+
+                    env.IMAGE_TAG = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Docker Image Tag: ${IMAGE_TAG}"
+                }
 
                 sh '''
-                    mvn package -DskipTests
+                    docker build \
+                        -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
+                        -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
+                        .
                 '''
 
-                echo 'BUILD COMPLETED'
-                sh '''
-                    echo "Generated artifacts:"
-                    find target -type f
-                '''
+                echo 'DOCKER IMAGE BUILD COMPLETED'
             }
         }
 
-        stage('Push to Nexus') {
+        stage('Login to ECR') {
 
             steps {
 
-                echo 'PUSH ARTIFACTS TO NEXUS'
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: "${NEXUS_CREDENTIALS}",
-                        usernameVariable: 'NEXUS_USERNAME',
-                        passwordVariable: 'NEXUS_PASSWORD'
-                    )
-                ]) {
+                echo 'LOGGING INTO AWS ECR'
 
-                    sh '''
-                        set +x
-
-                        echo "Creating temporary Maven settings..."
-
-                        cat > settings.xml <<EOF
-<settings>
-    <servers>
-        <server>
-            <id>nexus</id>
-            <username>${NEXUS_USERNAME}</username>
-            <password>${NEXUS_PASSWORD}</password>
-        </server>
-    </servers>
-</settings>
-EOF
-
-                        echo "Uploading artifact to Nexus..."
-
-                        mvn deploy \
-                            -DskipTests \
-                            -s settings.xml
-
-                        echo "NEXUS UPLOAD SUCCESSFUL"
-
-                        rm -f settings.xml
-                    '''
-                }
-            }
-        } */
-	stage('Build Docker Image') {
-
-        	steps {
-
-        		echo 'BUILDING DOCKER IMAGE'
-
-        		script {
-
-            			env.IMAGE_TAG = sh(
-                		script: 'git rev-parse --short HEAD',
-                		returnStdout: true
-            			).trim()
-
-            			echo "Docker Image Tag: ${IMAGE_TAG}"
-        		}
-
-        		sh '''
-            		docker build \
-                	-t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-                	-t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
-                .
-        		'''
-
-        		echo 'DOCKER IMAGE BUILD COMPLETED'
-    		}
-	}
-	
-	stage('Login to ECR') {
-
-    steps {
-
-        echo 'LOGGING INTO AWS ECR'
-
-        sh '''
-            aws ecr get-login-password \
-                --region ${AWS_REGION} \
-            | docker login \
-                --username AWS \
-                --password-stdin \
-                ${ECR_REGISTRY}
-        '''
-
-        echo 'ECR LOGIN SUCCESSFUL'
-    }
-}
-
-stage('Push Docker Image to ECR') {
-
-    steps {
-
-        echo 'PUSHING DOCKER IMAGE TO ECR'
-
-        sh '''
-            docker push \
-                ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-
-            docker push \
-                ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
-        '''
-
-        echo 'DOCKER IMAGE PUSHED TO ECR'
-    }
-}
-
-stage('Deploy to EC2') {
-
-    steps {
-
-        echo 'DEPLOYING DOCKER IMAGE TO EC2'
-
-        sshagent(credentials: ["${EC2_CREDENTIALS}"]) {
-
-            sh '''
-                ssh -o StrictHostKeyChecking=no \
-                    ${EC2_USER}@${EC2_HOST} << EOF
-
-                    set -e
-                    echo "EC2 DEPLOYMENT STARTED"
-
-                    echo "Logging into ECR..."
-
+                sh '''
                     aws ecr get-login-password \
                         --region ${AWS_REGION} \
                     | docker login \
                         --username AWS \
                         --password-stdin \
                         ${ECR_REGISTRY}
+                '''
 
+                echo 'ECR LOGIN SUCCESSFUL'
+            }
+        }
 
-                    echo "Pulling Docker image..."
+        stage('Push Docker Image to ECR') {
 
-                    docker pull \
+            steps {
+
+                echo 'PUSHING DOCKER IMAGE TO ECR'
+
+                sh '''
+                    docker push \
                         ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
+                    docker push \
+                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+                '''
 
-                    echo "Stopping old container..."
+                echo 'DOCKER IMAGE PUSHED TO ECR'
+            }
+        }
 
-                    docker stop \
-                        ${CONTAINER_NAME} || true
+        stage('Deploy to EC2') {
 
+            steps {
 
-                    echo "Removing old container..."
+                echo 'DEPLOYING DOCKER IMAGE TO EC2'
 
-                    docker rm \
-                        ${CONTAINER_NAME} || true
+                sshagent(credentials: ["${EC2_CREDENTIALS}"]) {
 
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            ${EC2_USER}@${EC2_HOST} << EOF
 
-                    echo "Starting new container..."
+                            set -e
 
-                    docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        --restart unless-stopped \
-                        -p ${HOST_PORT}:${APPLICATION_PORT} \
-                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+                            echo "EC2 DEPLOYMENT STARTED"
 
+                            echo "Logging into ECR..."
 
-                    echo "Waiting for application..."
+                            aws ecr get-login-password \
+                                --region ${AWS_REGION} \
+                            | docker login \
+                                --username AWS \
+                                --password-stdin \
+                                ${ECR_REGISTRY}
 
-                    sleep 10
+                            echo "Pulling Docker image..."
 
+                            docker pull \
+                                ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
-                    echo "Checking container..."
+                            echo "Stopping old container..."
 
-                    if [ "\$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME})" != "true" ]; then
+                            docker stop \
+                                ${CONTAINER_NAME} || true
 
-                        echo "Container failed to start."
+                            echo "Removing old container..."
 
-                        docker logs ${CONTAINER_NAME}
+                            docker rm \
+                                ${CONTAINER_NAME} || true
 
-                        exit 1
+                            echo "Starting new container..."
 
-                    fi
+                            docker run -d \
+                                --name ${CONTAINER_NAME} \
+                                --restart unless-stopped \
+                                -p ${HOST_PORT}:${APPLICATION_PORT} \
+                                ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
+                            echo "Waiting for application..."
 
-                    
-                    echo "DEPLOYMENT SUCCESSFUL"
-                    
+                            sleep 10
 
-                    docker ps
+                            echo "Checking container..."
+
+                            if [ "\$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME})" != "true" ]; then
+
+                                echo "Container failed to start."
+
+                                docker logs ${CONTAINER_NAME}
+
+                                exit 1
+
+                            fi
+
+                            echo "DEPLOYMENT SUCCESSFUL"
+
+                            docker ps
 
 EOF
-            '''
+                    '''
+                }
+            }
         }
-    }
-}
-
-
-
     }
 
     post {
@@ -348,19 +284,9 @@ EOF
             echo "PIPELINE FAILED"
         }
 
-       always {
-
-           /* sh '''
-                rm -f settings.xml || true
-            '''
-
-            archiveArtifacts(
-                artifacts: 'target/*.jar',
-                allowEmptyArchive: true
-            )*/
+        always {
 
             cleanWs()
         }
     }
 }
-
