@@ -14,6 +14,7 @@ pipeline {
     environment {
 
         SONARQUBE_SERVER = 'SonarQube'
+        SONAR_CREDENTIALS = 'sonartocken'
 
         GIT_CREDENTIALS = 'gitcredentials'
         GIT_REPO = 'https://github.com/nayana000/demoproject.git'
@@ -99,7 +100,7 @@ pipeline {
 
                     withCredentials([
                         string(
-                            credentialsId: 'sonartocken',
+                            credentialsId: "${SONAR_CREDENTIALS}",
                             variable: 'SONAR_TOKEN'
                         )
                     ]) {
@@ -120,7 +121,7 @@ pipeline {
                 echo 'WAITING FOR SONARQUBE QUALITY GATE'
 
                 timeout(
-                    time: 2,
+                    time: 10,
                     unit: 'MINUTES'
                 ) {
 
