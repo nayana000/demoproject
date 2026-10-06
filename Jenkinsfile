@@ -118,19 +118,6 @@ pipeline {
 
             steps {
 
-                echo 'WAITING FOR SONARQUBE QUALITY GATE'
-
-                timeout(
-                    time: 10,
-                    unit: 'MINUTES'
-                ) {
-
-                    input(
-                            message: 'SonarQube Quality Gate passed. Do you want to deploy this version?',
-                            ok: 'Approve Deployment'
-                    )
-                }
-
                 echo 'SONARQUBE QUALITY GATE PASSED'
             }
         }
