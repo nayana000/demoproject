@@ -23,7 +23,7 @@ pipeline {
 	    ECR_REPOSITORY = 'demoproject'
 	    ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 	    EC2_CREDENTIALS = 'sshkey'
-	    EC2_HOST = '3.109.206.28'
+	    EC2_HOST = '3.7.69.93'
 	    EC2_USER = 'ubuntu'
 	    CONTAINER_NAME = 'demoproject'
 	    HOST_PORT = '8082'
