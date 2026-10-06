@@ -6,8 +6,9 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 
-public class HelloApplication {
+public class Main {
 
     public static void main(String[] args) throws IOException {
 
@@ -18,8 +19,8 @@ public class HelloApplication {
                 0
         );
 
-        server.createContext("/", HelloApplication::handleRequest);
-        server.createContext("/hello", HelloApplication::handleRequest);
+        server.createContext("/", Main::handleRequest);
+        server.createContext("/hello", Main::handleRequest);
 
         server.start();
 
@@ -41,15 +42,17 @@ public class HelloApplication {
                 </html>
                 """.formatted(exchange.getRequestURI().getPath());
 
+        byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
+
         exchange.getResponseHeaders().set(
                 "Content-Type",
                 "text/html; charset=UTF-8"
         );
 
-        exchange.sendResponseHeaders(200, response.getBytes().length);
+        exchange.sendResponseHeaders(200, responseBytes.length);
 
         try (OutputStream output = exchange.getResponseBody()) {
-            output.write(response.getBytes());
+            output.write(responseBytes);
         }
     }
 }
