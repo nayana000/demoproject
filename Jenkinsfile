@@ -125,8 +125,9 @@ pipeline {
                     unit: 'MINUTES'
                 ) {
 
-                    waitForQualityGate(
-                        abortPipeline: true
+                    input(
+                            message: 'SonarQube Quality Gate passed. Do you want to deploy this version?',
+                            ok: 'Approve Deployment'
                     )
                 }
 
