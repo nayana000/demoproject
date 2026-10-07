@@ -31,7 +31,7 @@ parameters {
 
         ECR_IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
 
-        EC2_HOST = '15.252.73.248'
+       /* EC2_HOST = '15.252.73.248'
 
         EC2_USER = 'ubuntu'
 
@@ -41,9 +41,15 @@ parameters {
 
         HOST_PORT = '8082'
 
-        CONTAINER_PORT = '8080'
+        CONTAINER_PORT = '8080' */
 
         SONARQUBE_ENV = 'SonarQube'
+        
+        K8S_NAMESPACE = 'default'
+        
+        K8S_DEPLOYMENT = 'demoproject'
+        
+        K8S_CONTAINER = 'demoproject'
     }
 
 
@@ -172,7 +178,7 @@ parameters {
 
 
 
-        stage('Deploy') {
+   /*     stage('Deploy') {
 
             steps {
 
@@ -270,16 +276,82 @@ parameters {
                                 curl -f \
                                 http://localhost:${HOST_PORT}/demoproject/health
                             "
-
-
-                        echo ""
-                        echo "=========================================="
                         echo "APPLICATION HEALTH CHECK PASSED"
-                        echo "=========================================="
                     '''
                 }
             }
+        }*/
+
+         stage('Deploy to Kubernetes') {
+
+        steps {
+
+            echo "Deploying image to Kubernetes..."
+
+            sh '''
+                kubectl set image deployment/${K8S_DEPLOYMENT} \
+                  ${K8S_CONTAINER}=${ECR_IMAGE}:${BUILD_NUMBER} \
+                  --namespace=${K8S_NAMESPACE}
+            '''
         }
+    }
+
+
+    stage('Kubernetes Rollout') {
+
+        steps {
+
+            echo "Waiting for Kubernetes rollout..."
+
+            sh '''
+                kubectl rollout status \
+                  deployment/${K8S_DEPLOYMENT} \
+                  --namespace=${K8S_NAMESPACE} \
+                  --timeout=180s
+            '''
+        }
+    }
+
+
+    stage('Kubernetes Verification') {
+
+        steps {
+
+            echo "Checking Kubernetes deployment..."
+
+            sh '''
+                kubectl get deployment ${K8S_DEPLOYMENT} \
+                  --namespace=${K8S_NAMESPACE}
+
+                kubectl get pods \
+                  --namespace=${K8S_NAMESPACE} \
+                  -o wide
+
+                kubectl get svc \
+                  --namespace=${K8S_NAMESPACE}
+            '''
+        }
+    }
+
+
+    stage('Application Health Check') {
+
+        steps {
+
+            echo "Checking application health..."
+
+            sh '''
+                kubectl get pods \
+                  -l app=demoproject \
+                  --namespace=${K8S_NAMESPACE}
+            '''
+
+            sh '''
+                kubectl get svc demoproject-service \
+                  --namespace=${K8S_NAMESPACE}
+            '''
+        }
+    }
     }
 
 
@@ -287,7 +359,7 @@ parameters {
 
         success {
 
-            echo """
+       /*     echo """
                  DEPLOYMENT SUCCESSFUL
 
             Application:
@@ -308,7 +380,21 @@ parameters {
             Health URL:
             http://${EC2_HOST}:${HOST_PORT}/demoproject/health
 
-            """
+            """*/
+            echo """
+                 DEPLOYMENT SUCCESSFUL
+                 Branch:
+        ${params.BRANCH}
+
+        Docker Image:
+        ${ECR_IMAGE}:${BUILD_NUMBER}
+
+        Kubernetes Deployment:
+        ${K8S_DEPLOYMENT}
+
+        Namespace:
+        ${K8S_NAMESPACE}
+    """
         }
 
 
