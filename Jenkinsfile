@@ -214,11 +214,11 @@ pipeline {
 
                     echo "Stopping old container..."
 
-                    docker stop ${CONTAINER_NAME} || true
+                    docker stop ${CONTAINER_NAME} 2>/dev/null || true
 
                     echo "Removing old container..."
 
-                    docker rm ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} 2>/dev/null || true
 
                     echo "Starting new container..."
 
@@ -238,11 +238,11 @@ pipeline {
 
                     echo "Checking container..."
 
-                    CONTAINER_STATUS=\$(docker inspect \
+                    CONTAINER_STATUS= $(docker inspect \
                         -f '{{.State.Status}}' \
-                        ${CONTAINER_NAME})
+                        ${CONTAINER_NAME} 2>/dev/null || true)
 
-                    echo "Container status: [\$CONTAINER_STATUS]"
+                    echo "Container status: [$CONTAINER_STATUS]"
 
                     if [ "$CONTAINER_STATUS" != "running" ]; then
 
@@ -250,14 +250,14 @@ pipeline {
 
                         docker ps -a
 
-                        docker logs ${CONTAINER_NAME}
+                        docker logs ${CONTAINER_NAME} || true
 
                         exit 1
 
                     fi
 
                     echo "CONTAINER IS RUNNING"
-                    
+                    echo "CHECK APPLICATION"
                         http://localhost:${HOST_PORT}
                     echo "DEPLOYMENT SUCCESSFUL"
                     docker ps
