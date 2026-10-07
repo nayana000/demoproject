@@ -282,56 +282,35 @@ parameters {
             }
         }*/
 
-         stage('Deploy to Kubernetes') {
-
-        steps {
-
-            echo "Deploying image to Kubernetes..."
-
-            sh '''
-                kubectl set image deployment/${K8S_DEPLOYMENT} \
-                  ${K8S_CONTAINER}=${ECR_IMAGE}:${BUILD_NUMBER} \
-                  --namespace=${K8S_NAMESPACE}
-            '''
-        }
+	stage('Deploy to Kubernetes') {
+    steps {
+        sh '''
+            kubectl set image deployment/demoproject \
+              demoproject=${ECR_IMAGE}:${BUILD_NUMBER} \
+              --namespace=default
+        '''
     }
+}
 
-
-    stage('Kubernetes Rollout') {
-
-        steps {
-
-            echo "Waiting for Kubernetes rollout..."
-
-            sh '''
-                kubectl rollout status \
-                  deployment/${K8S_DEPLOYMENT} \
-                  --namespace=${K8S_NAMESPACE} \
-                  --timeout=180s
-            '''
-        }
+stage('Kubernetes Rollout') {
+    steps {
+        sh '''
+            kubectl rollout status deployment/demoproject \
+              --namespace=default \
+              --timeout=180s
+        '''
     }
+}
 
-
-    stage('Kubernetes Verification') {
-
-        steps {
-
-            echo "Checking Kubernetes deployment..."
-
-            sh '''
-                kubectl get deployment ${K8S_DEPLOYMENT} \
-                  --namespace=${K8S_NAMESPACE}
-
-                kubectl get pods \
-                  --namespace=${K8S_NAMESPACE} \
-                  -o wide
-
-                kubectl get svc \
-                  --namespace=${K8S_NAMESPACE}
-            '''
-        }
+stage('Kubernetes Verification') {
+    steps {
+        sh '''
+            kubectl get pods -o wide
+            kubectl get deployment demoproject
+            kubectl get service demoproject
+        '''
     }
+}
 
 
     stage('Application Health Check') {
