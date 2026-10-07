@@ -2,15 +2,19 @@ pipeline {
 
     agent any
 
-    parameters {
+parameters {
 
-        string(
+        gitParameter(
             name: 'BRANCH',
+            type: 'PT_BRANCH',
             defaultValue: 'main',
-            description: 'Git branch to build and deploy'
+            branchFilter: 'origin/(.*)',
+            selectedValue: 'DEFAULT',
+            sortMode: 'ASCENDING',
+            description: 'Select the Git branch to build',
+            useRepository: 'https://github.com/nayana000/demoproject.git'
         )
     }
-
     environment {
 
 
