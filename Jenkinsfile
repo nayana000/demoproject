@@ -244,7 +244,7 @@ pipeline {
 
                     echo "Container status: [\$CONTAINER_STATUS]"
 
-                    if [ "\$CONTAINER_STATUS" != "running" ]; then
+                    if [ "$CONTAINER_STATUS" != "running" ]; then
 
                         echo "Container failed to start."
 
