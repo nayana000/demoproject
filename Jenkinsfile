@@ -2,114 +2,91 @@ pipeline {
 
     agent any
 
-    options {
-        skipDefaultCheckout(true)
-    }
-
- /*   tools {
-        jdk 'java21'
-        maven 'maven3'
-    } */
-
-    environment {
-
-        SONARQUBE_SERVER = 'SonarQube'
-        SONAR_CREDENTIALS = 'sonartocken'
-
-        GIT_CREDENTIALS = 'gitcredentials'
-        GIT_REPO = 'https://github.com/nayana000/demoproject.git'
-
-        AWS_REGION = 'ap-south-1'
-        AWS_ACCOUNT_ID = '890615325308'
-        ECR_REPOSITORY = 'demoproject'
-        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-
-        EC2_CREDENTIALS = 'sshkey'
-        EC2_HOST = '15.206.205.193'
-        EC2_USER = 'ubuntu'
-
-        CONTAINER_NAME = 'demoproject'
-
-        // ec2 host port
-        HOST_PORT = '8082'
-
-        // application port
-        APPLICATION_PORT = '8080'
-    }
-
     parameters {
 
-        gitParameter(
+        string(
             name: 'BRANCH',
-            type: 'PT_BRANCH',
             defaultValue: 'main',
-            branchFilter: 'origin/(.*)',
-            selectedValue: 'DEFAULT',
-            sortMode: 'ASCENDING',
-            description: 'Select the Git branch to build',
-            useRepository: 'https://github.com/nayana000/demoproject.git'
+            description: 'Git branch to build and deploy'
         )
     }
 
+    environment {
+
+
+        AWS_REGION = 'ap-south-1'
+
+        AWS_ACCOUNT_ID = '890615325308'
+
+        ECR_REPOSITORY = 'demoproject'
+
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+        ECR_IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
+
+        EC2_HOST = '15.252.73.248'
+
+        EC2_USER = 'ubuntu'
+
+        SSH_CREDENTIALS = 'sshkey'
+
+        CONTAINER_NAME = 'demoproject'
+
+        HOST_PORT = '8082'
+
+        CONTAINER_PORT = '8080'
+
+        SONARQUBE_ENV = 'SonarQube'
+    }
+
+
     stages {
+
+
+        stage('Show Selected Branch') {
+
+            steps {
+
+                echo "Selected Git Branch: ${params.BRANCH}"
+            }
+        }
+
 
         stage('Checkout') {
 
             steps {
 
-                echo "CHECKING OUT BRANCH: ${params.BRANCH}"
-
-                checkout([
-                    $class: 'GitSCM',
-
-                    branches: [[
-                        name: "*/${params.BRANCH}"
-                    ]],
-
-                    userRemoteConfigs: [[
-                        url: "${GIT_REPO}",
-                        credentialsId: "${GIT_CREDENTIALS}"
-                    ]],
-
-                    extensions: [
-                        [
-                            $class: 'CleanBeforeCheckout'
-                        ]
-                    ]
-                ])
+                git(
+                    branch: "${params.BRANCH}",
+                    credentialsId: 'git-credentials',
+                    url: 'https://github.com/nayana000/demoproject.git'
+                )
 
                 sh '''
-                    echo "CHECKED OUT BRANCH"
+                    echo "Checked out branch:"
+                    git branch --show-current
 
                     echo "Commit:"
                     git rev-parse HEAD
-
-                    echo "Commit Message:"
-                    git log -1 --pretty=%B
                 '''
             }
         }
+
 
         stage('SonarQube Analysis') {
 
             steps {
 
-                echo 'RUNNING SONARQUBE ANALYSIS'
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
 
-                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                    sh '''
+                        echo "Running SonarQube analysis..."
 
-                    withCredentials([
-                        string(
-                            credentialsId: "${SONAR_CREDENTIALS}",
-                            variable: 'SONAR_TOKEN'
-                        )
-                    ]) {
+                        mvn clean verify sonar:sonar \
+                          -Dsonar.projectKey=demoproject \
+                          -Dsonar.projectName=demoproject
 
-                        sh '''
-                            mvn clean verify sonar:sonar \
-                                -Dsonar.token="$SONAR_TOKEN"
-                        '''
-                    }
+                    '''
                 }
             }
         }
@@ -118,172 +95,229 @@ pipeline {
 
             steps {
 
-                echo 'SONARQUBE QUALITY GATE PASSED'
-            }
-        }
+                timeout(
+                    time: 5,
+                    unit: 'MINUTES'
+                ) {
 
-        stage('Build Docker Image') {
-
-            steps {
-
-                echo 'BUILDING DOCKER IMAGE'
-
-                script {
-
-                    env.IMAGE_TAG = sh(
-                        script: 'git rev-parse --short HEAD',
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Docker Image Tag: ${IMAGE_TAG}"
+                    waitForQualityGate(
+                        abortPipeline: true
+                    )
                 }
+            }
+        }
+
+
+        stage('Docker Build') {
+
+            steps {
 
                 sh '''
+                    echo "Building Docker image"
+
                     docker build \
-                        -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-                        -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
-                        .
-                '''
+                        -t ${ECR_IMAGE}:${BUILD_NUMBER} .
 
-                echo 'DOCKER IMAGE BUILD COMPLETED'
+                    docker tag \
+                        ${ECR_IMAGE}:${BUILD_NUMBER} \
+                        ${ECR_IMAGE}:latest
+
+                    echo "Docker images created:"
+                    docker images | grep demoproject
+                '''
             }
         }
 
-        stage('Login to ECR') {
+
+
+        stage('ECR Login') {
 
             steps {
 
-                echo 'LOGGING INTO AWS ECR'
-
                 sh '''
-                    aws ecr get-login-password \
-                        --region ${AWS_REGION} \
-                    | docker login \
-                        --username AWS \
-                        --password-stdin \
-                        ${ECR_REGISTRY}
-                '''
+                    echo "Logging in to Amazon ECR..."
 
-                echo 'ECR LOGIN SUCCESSFUL'
+                    aws ecr get-login-password \
+                        --region ${AWS_REGION} | \
+                    docker login \
+                        --username AWS \
+                        --password-stdin ${ECR_REGISTRY}
+                '''
             }
         }
 
-        stage('Push Docker Image to ECR') {
+
+        stage('Push Image to ECR') {
 
             steps {
 
-                echo 'PUSHING DOCKER IMAGE TO ECR'
-
                 sh '''
-                    docker push \
-                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-                '''
+                    echo "Pushing image to ECR..."
 
-                echo 'DOCKER IMAGE PUSHED TO ECR'
+                    docker push ${ECR_IMAGE}:${BUILD_NUMBER}
+
+                    docker push ${ECR_IMAGE}:latest
+
+                    echo "Images pushed successfully."
+                '''
             }
         }
 
-        stage('Deploy to EC2') {
 
-    steps {
 
-        echo 'DEPLOYING DOCKER IMAGE TO EC2'
+        stage('Deploy') {
 
-        sshagent(credentials: ["${EC2_CREDENTIALS}"]) {
+            steps {
 
-            sh """
-                ssh -o StrictHostKeyChecking=no \
-                    ${EC2_USER}@${EC2_HOST} 'bash -s' << EOF
+                sshagent(credentials: ["${SSH_CREDENTIALS}"]) {
 
-                    set -e
-                    echo "EC2 DEPLOYMENT STARTED"
+                    sh '''
 
-                    echo "Logging into ECR..."
+                        echo "Connecting to EC2-2"
 
-                    aws ecr get-login-password \
-                        --region ${AWS_REGION} \
-                    | docker login \
-                        --username AWS \
-                        --password-stdin \
-                        ${ECR_REGISTRY}
+                        ssh \
+                            -o StrictHostKeyChecking=no \
+                            ${EC2_USER}@${EC2_HOST} \
+                            "hostname"
 
-                    echo "Pulling Docker image..."
+                        echo "Connected successfully."
 
-                    docker pull \
-                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+                        echo "Deploying application"
 
-                    echo "Stopping old container..."
 
-                    docker stop ${CONTAINER_NAME} 2>/dev/null || true
+                        ssh \
+                            -o StrictHostKeyChecking=no \
+                            ${EC2_USER}@${EC2_HOST} \
+                            "
+                                set -e
 
-                    echo "Removing old container..."
+                                echo 'Logging in to ECR...'
 
-                    docker rm ${CONTAINER_NAME} 2>/dev/null || true
+                                aws ecr get-login-password \
+                                    --region ${AWS_REGION} | \
+                                docker login \
+                                    --username AWS \
+                                    --password-stdin ${ECR_REGISTRY}
 
-                    echo "Starting new container..."
 
-                    docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        --restart unless-stopped \
-                        -p ${HOST_PORT}:${APPLICATION_PORT} \
-                        ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+                                echo 'Pulling Docker image...'
 
-                    echo "Waiting for application..."
+                                docker pull \
+                                    ${ECR_IMAGE}:${BUILD_NUMBER}
 
-                    sleep 10
 
-                    echo "CONTAINER STATUS"
+                                echo 'Stopping old container...'
 
-                    docker ps -a
+                                docker stop \
+                                    ${CONTAINER_NAME} || true
 
-                    echo "Checking container..."
 
-                    CONTAINER_STATUS= $(docker inspect \
-                        -f '{{.State.Status}}' \
-                        ${CONTAINER_NAME} 2>/dev/null || true)
+                                echo 'Removing old container...'
 
-                    echo "Container status: [$CONTAINER_STATUS]"
+                                docker rm \
+                                    ${CONTAINER_NAME} || true
 
-                    if [ "$CONTAINER_STATUS" != "running" ]; then
 
-                        echo "Container failed to start."
+                                echo 'Starting new container...'
 
-                        docker ps -a
+                                docker run -d \
+                                    --name ${CONTAINER_NAME} \
+                                    --restart unless-stopped \
+                                    -p ${HOST_PORT}:${CONTAINER_PORT} \
+                                    ${ECR_IMAGE}:${BUILD_NUMBER}
 
-                        docker logs ${CONTAINER_NAME} || true
 
-                        exit 1
+                                echo 'Deployment completed.'
 
-                    fi
+                                echo 'Running containers:'
 
-                    echo "CONTAINER IS RUNNING"
-                    echo "CHECK APPLICATION"
-                        http://localhost:${HOST_PORT}
-                    echo "DEPLOYMENT SUCCESSFUL"
-                    docker ps
+                                docker ps
+                            "
+                    '''
+                }
+            }
+        }
 
-                    EOF
-            """
+
+
+        stage('Application Health Check') {
+
+            steps {
+
+                sshagent(credentials: ["${SSH_CREDENTIALS}"]) {
+
+                    sh '''
+
+                        echo "Waiting for application to start..."
+
+                        sleep 10
+
+
+                        echo "Checking application health..."
+
+
+                        ssh \
+                            -o StrictHostKeyChecking=no \
+                            ${EC2_USER}@${EC2_HOST} \
+                            "
+                                curl -f \
+                                http://localhost:${HOST_PORT}/demoproject/health
+                            "
+
+
+                        echo ""
+                        echo "=========================================="
+                        echo "APPLICATION HEALTH CHECK PASSED"
+                        echo "=========================================="
+                    '''
+                }
+            }
         }
     }
-}
-    }
+
 
     post {
 
         success {
 
-            echo "PIPELINE EXECUTION SUCCESSFUL"
+            echo """
+                 DEPLOYMENT SUCCESSFUL
+
+            Application:
+            ${ECR_IMAGE}:${BUILD_NUMBER}
+
+            Git Branch:
+            ${params.BRANCH}
+
+            EC2:
+            ${EC2_HOST}
+
+            Application Port:
+            ${HOST_PORT}
+
+            Container Port:
+            ${CONTAINER_PORT}
+
+            Health URL:
+            http://${EC2_HOST}:${HOST_PORT}/demoproject/health
+
+            """
         }
+
 
         failure {
 
-            echo "PIPELINE FAILED"
+            echo """
+                    PIPELINE FAILED
+
+            """
         }
+
 
         always {
 
-            cleanWs()
+            echo "Pipeline execution completed."
         }
     }
 }
+

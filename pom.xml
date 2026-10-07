@@ -1,45 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="
+             http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.example</groupId>
-    <artifactId>demo-project</artifactId>
+    <!-- Project Information -->
+    <groupId>com.demo</groupId>
+    <artifactId>demoproject</artifactId>
     <version>1.0.0</version>
-    <packaging>jar</packaging>
 
+    <!-- Generate WAR file -->
+    <packaging>war</packaging>
+
+
+    <!-- Java Configuration -->
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <maven.compiler.release>21</maven.compiler.release>
+
+        <project.build.sourceEncoding>
+            UTF-8
+        </project.build.sourceEncoding>
+
     </properties>
 
+
+    <!-- Dependencies -->
+    <dependencies>
+
+        <!-- Jakarta Servlet API -->
+        <!-- Tomcat provides this at runtime -->
+        <dependency>
+
+            <groupId>jakarta.servlet</groupId>
+
+            <artifactId>jakarta.servlet-api</artifactId>
+
+            <version>6.0.0</version>
+
+            <scope>provided</scope>
+
+        </dependency>
+
+    </dependencies>
+
+
+    <!-- Build Configuration -->
     <build>
 
-        <finalName>demo-Project</finalName>
+        <!-- target/demoproject.war -->
+        <finalName>demoproject</finalName>
 
         <plugins>
 
-            <!-- Create executable JAR -->
+            <!-- Java Compiler -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.5.0</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>Main</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
+
+                <groupId>
+                    org.apache.maven.plugins
+                </groupId>
+
+                <artifactId>
+                    maven-compiler-plugin
+                </artifactId>
+
+                <version>3.13.0</version>
+
             </plugin>
 
-            <!-- SonarQube Maven Scanner -->
+
+            <!-- WAR Packaging -->
             <plugin>
-                <groupId>org.sonarsource.scanner.maven</groupId>
-                <artifactId>sonar-maven-plugin</artifactId>
+
+                <groupId>
+                    org.apache.maven.plugins
+                </groupId>
+
+                <artifactId>
+                    maven-war-plugin
+                </artifactId>
+
+                <version>3.4.0</version>
+
+            </plugin>
+
+
+            <!-- SonarQube Scanner -->
+            <plugin>
+
+                <groupId>
+                    org.sonarsource.scanner.maven
+                </groupId>
+
+                <artifactId>
+                    sonar-maven-plugin
+                </artifactId>
+
                 <version>5.5.0.6356</version>
+
             </plugin>
 
         </plugins>
