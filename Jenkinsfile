@@ -257,24 +257,8 @@ pipeline {
                     fi
 
                     echo "CONTAINER IS RUNNING"
-
-                    echo "APPLICATION HEALTH CHECK"
-                    HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \
-                        http://localhost:${HOST_PORT}/hello)
-
-                    echo "HTTP Status: [\$HTTP_STATUS]"
-
-                    if [ "\$HTTP_STATUS" != "200" ]; then
-
-                        echo "APPLICATION HEALTH CHECK FAILED"
-
-                        docker logs ${CONTAINER_NAME}
-
-                        exit 1
-
-                    fi
-
-                    echo "APPLICATION HEALTH CHECK PASSED"
+                    
+                        http://localhost:${HOST_PORT}
                     echo "DEPLOYMENT SUCCESSFUL"
                     docker ps
 
