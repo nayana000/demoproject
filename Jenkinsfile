@@ -6,10 +6,10 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
-    tools {
+ /*   tools {
         jdk 'java21'
         maven 'maven3'
-    }
+    } */
 
     environment {
 
@@ -25,15 +25,15 @@ pipeline {
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
         EC2_CREDENTIALS = 'sshkey'
-        EC2_HOST = '3.7.69.93'
+        EC2_HOST = '15.206.205.193'
         EC2_USER = 'ubuntu'
 
         CONTAINER_NAME = 'demoproject'
 
-        // EC2 host port
+        // ec2 host port
         HOST_PORT = '8082'
 
-        // Java/Docker application port
+        // application port
         APPLICATION_PORT = '8080'
     }
 
@@ -196,10 +196,7 @@ pipeline {
                     ${EC2_USER}@${EC2_HOST} 'bash -s' << EOF
 
                     set -e
-
-                    echo "========================================="
                     echo "EC2 DEPLOYMENT STARTED"
-                    echo "========================================="
 
                     echo "Logging into ECR..."
 
@@ -235,9 +232,7 @@ pipeline {
 
                     sleep 10
 
-                    echo "========================================="
                     echo "CONTAINER STATUS"
-                    echo "========================================="
 
                     docker ps -a
 
@@ -263,10 +258,7 @@ pipeline {
 
                     echo "CONTAINER IS RUNNING"
 
-                    echo "========================================="
                     echo "APPLICATION HEALTH CHECK"
-                    echo "========================================="
-
                     HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \
                         http://localhost:${HOST_PORT}/hello)
 
@@ -283,11 +275,7 @@ pipeline {
                     fi
 
                     echo "APPLICATION HEALTH CHECK PASSED"
-
-                    echo "========================================="
                     echo "DEPLOYMENT SUCCESSFUL"
-                    echo "========================================="
-
                     docker ps
 
                     EOF
