@@ -30,6 +30,10 @@ parameters {
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
         ECR_IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
+	
+	IMAGE_TAG = "${BUILD_NUMBER}"
+
+	ARGOCD_REPO = 'https://github.com/nayana000/argocd.git'
 
        /* EC2_HOST = '15.252.73.248'
 
@@ -44,12 +48,6 @@ parameters {
         CONTAINER_PORT = '8080' */
 
         SONARQUBE_ENV = 'SonarQube'
-        
-        K8S_NAMESPACE = 'default'
-        
-        K8S_DEPLOYMENT = 'demoproject'
-        
-        K8S_CONTAINER = 'demoproject'
     }
 
 
@@ -282,55 +280,61 @@ parameters {
             }
         }*/
 
-	stage('Deploy to Kubernetes') {
-    steps {
-        sh '''
-            kubectl set image deployment/demoproject \
-              demoproject=${ECR_IMAGE}:${BUILD_NUMBER} \
-              --namespace=default
-        '''
-    }
-}
 
-stage('Kubernetes Rollout') {
-    steps {
-        sh '''
-            kubectl rollout status deployment/demoproject \
-              --namespace=default \
-              --timeout=180s
-        '''
-    }
-}
+	
+	stage('Update GitOps Repository') {
+            steps {
 
-stage('Kubernetes Verification') {
-    steps {
-        sh '''
-            kubectl get pods -o wide
-            kubectl get deployment demoproject
-            kubectl get service demoproject
-        '''
-    }
-}
+                echo "Updating GitOps repository..."
+
+                dir('gitops') {
+
+                    checkout([
+                        $class: 'GitSCM',
+
+                        branches: [[
+                            name: '*/main'
+                        ]],
+
+                        userRemoteConfigs: [[
+                            url: "${ARGOCD_REPO}",
+                            credentialsId: 'gitcredentials'
+                        ]]
+                    ])
 
 
-    stage('Application Health Check') {
+                    sh '''
+                        echo "Updating deployment image..."
 
-        steps {
+                        sed -i \
+                          "s|image:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|" \
+                          deployment.yaml
 
-            echo "Checking application health..."
 
-            sh '''
-                kubectl get pods \
-                  -l app=demoproject \
-                  --namespace=${K8S_NAMESPACE}
-            '''
+                        echo "Updated deployment.yaml:"
 
-            sh '''
-                kubectl get svc demoproject-service \
-                  --namespace=${K8S_NAMESPACE}
-            '''
+                        grep "image:" deployment.yaml
+
+
+                        git config user.name "Jenkins"
+
+                        git config user.email "jenkins@localhost"
+
+
+                        git add deployment.yaml
+
+
+                        git commit \
+                          -m "Update image to ${IMAGE_TAG}" || true
+
+
+                        git push origin main
+                    '''
+                }
+            }
         }
-    }
+	
+
     }
 
 
@@ -362,17 +366,19 @@ stage('Kubernetes Verification') {
             """*/
             echo """
                  DEPLOYMENT SUCCESSFUL
-                 Branch:
-        ${params.BRANCH}
+		Build:
+            ${BUILD_NUMBER}
 
-        Docker Image:
-        ${ECR_IMAGE}:${BUILD_NUMBER}
+            Image:
+            ${IMAGE_NAME}:${IMAGE_TAG}
 
-        Kubernetes Deployment:
-        ${K8S_DEPLOYMENT}
+            ECR:
+            ${ECR_REGISTRY}
 
-        Namespace:
-        ${K8S_NAMESPACE}
+            GitOps:
+            ${ARGOCD_REPO}
+
+            Argo CD will deploy the new image.
     """
         }
 
@@ -388,7 +394,9 @@ stage('Kubernetes Verification') {
 
         always {
 
-            echo "Pipeline execution completed."
+            sh '''
+                docker logout ${ECR_REGISTRY} || true
+            '''
         }
     }
 }
