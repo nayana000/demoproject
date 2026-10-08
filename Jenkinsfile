@@ -283,56 +283,47 @@ parameters {
 
 	
 	stage('Update GitOps Repository') {
-            steps {
+    steps {
 
-                echo "Updating GitOps repository..."
+        echo "Updating GitOps repository..."
 
-                dir('gitops') {
+        dir('gitops') {
 
-                    checkout([
-                        $class: 'GitSCM',
+            git branch: 'main',
+                credentialsId: 'github-credentials',
+                url: 'https://github.com/nayana000/argocd.git'
 
-                        branches: [[
-                            name: '*/main'
-                        ]],
+            sh '''
+                echo "Current Git branch:"
+                git branch --show-current
 
-                        userRemoteConfigs: [[
-                            url: "${ARGOCD_REPO}",
-                            credentialsId: 'gitcredentials'
-                        ]]
-                    ])
+                echo "Updating deployment image..."
 
+                NEW_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
-                    sh '''
-                        echo "Updating deployment image..."
+                echo "New image:"
+                echo "${NEW_IMAGE}"
 
-                        sed -i \
-                          "s|image:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|" \
-                          deployment.yaml
+                sed -i \
+                  "s|^[[:space:]]*image:.*|          image: ${NEW_IMAGE}|" \
+                  deployment.yaml
 
+                echo "Updated deployment.yaml:"
+                grep "image:" deployment.yaml
 
-                        echo "Updated deployment.yaml:"
+                git config user.name "Jenkins"
+                git config user.email "jenkins@localhost"
 
-                        grep "image:" deployment.yaml
+                git add deployment.yaml
 
+                git commit \
+                  -m "Update image to ${IMAGE_TAG}" || true
 
-                        git config user.name "Jenkins"
-
-                        git config user.email "jenkins@localhost"
-
-
-                        git add deployment.yaml
-
-
-                        git commit \
-                          -m "Update image to ${IMAGE_TAG}" || true
-
-
-                        git push origin main
-                    '''
-                }
-            }
+                git push origin HEAD:main
+            '''
         }
+    }
+}
 	
 
     }
