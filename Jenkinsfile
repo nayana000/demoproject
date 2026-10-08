@@ -285,48 +285,41 @@ parameters {
 	stage('Update GitOps Repository') {
     steps {
 
-        echo "Updating GitOps repository..."
-
         dir('gitops') {
 
-            git branch: 'main',
-                credentialsId: 'gitcredentials',
-                url: 'https://github.com/nayana000/argocd.git'
+            git(
+                        branch: 'main',
+                        credentialsId: 'gitcredentials',
+                        url: 'https://github.com/nayana000/argocd.git'
+                    )
 
-            sh '''
-                echo "Current Git branch:"
-                git branch --show-current
+                sh '''
+                    NEW_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
-                echo "Updating deployment image..."
+                    echo "Updating image to:"
+                    echo "${NEW_IMAGE}"
 
-                NEW_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                    sed -i \
+                      "s|^[[:space:]]*image:.*|          image: ${NEW_IMAGE}|" \
+                      deployment.yaml
 
-                echo "New image:"
-                echo "${NEW_IMAGE}"
+                    grep "image:" deployment.yaml
 
-                sed -i \
-                  "s|^[[:space:]]*image:.*|          image: ${NEW_IMAGE}|" \
-                  deployment.yaml
+                    git config user.name "Jenkins"
+                    git config user.email "jenkins@localhost"
 
-                echo "Updated deployment.yaml:"
-                grep "image:" deployment.yaml
+                    git add deployment.yaml
 
-                git config user.name "Jenkins"
-                git config user.email "jenkins@localhost"
+                    git commit \
+                      -m "Update image to ${IMAGE_TAG}" || true
 
-                git add deployment.yaml
-
-                git commit \
-                  -m "Update image to ${IMAGE_TAG}" || true
-
-                git push origin HEAD:main
-            '''
+                    git push origin HEAD:main
+                '''
+            }
         }
     }
 }
-	
 
-    }
 
 
     post {
