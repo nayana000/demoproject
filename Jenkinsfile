@@ -69,7 +69,7 @@ parameters {
 
                 git(
                     branch: "${params.BRANCH}",
-                    credentialsId: 'git-credentials',
+                    credentialsId: 'gitcredentials',
                     url: 'https://github.com/nayana000/demoproject.git'
                 )
 
@@ -290,7 +290,7 @@ parameters {
         dir('gitops') {
 
             git branch: 'main',
-                credentialsId: 'github-credentials',
+                credentialsId: 'gitcredentials',
                 url: 'https://github.com/nayana000/argocd.git'
 
             sh '''
