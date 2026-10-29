@@ -312,9 +312,13 @@ parameters {
 
                     git commit \
                       -m "Update image to ${IMAGE_TAG}" || true
-
-                    git push origin HEAD:main
                 '''
+			withCredentials([
+                gitUsernamePassword(
+                    credentialsId: 'gitcredentials',
+                    gitToolName: 'Default'
+                )
+            ])
             }
         }
     }
