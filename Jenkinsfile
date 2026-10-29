@@ -319,6 +319,9 @@ parameters {
                     gitToolName: 'Default'
                 )
             ])
+			{
+                sh 'git push origin HEAD:main'
+            }
             }
         }
     }
