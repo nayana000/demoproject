@@ -361,7 +361,7 @@ parameters {
             ${BUILD_NUMBER}
 
             Image:
-            ${IMAGE_NAME}:${IMAGE_TAG}
+            ${ ECR_IMAGE}:${IMAGE_TAG}
 
             ECR:
             ${ECR_REGISTRY}
